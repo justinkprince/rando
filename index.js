@@ -1,27 +1,48 @@
 'use strict';
 
 const Alexa = require('alexa-sdk');
-const APP_ID = 'amzn1.ask.skill.8bd7344c-9f07-4291-ad1d-77bb5fb30b57';
+
+// An application ID provided by Amazon should be added here.
+const APP_ID = null;
+
 const defaults = {
     min: 1,
     max: 100,
 };
 
-function rando(min, max) {
+function random(min, max) {
+    // Random seed.
     let seed = Math.random();
+    // Range multiplier.
     let multiplier = max - min + 1;
+    // Apply multiplier to seed and cast to integer.
+    let random = parseInt(Math.floor(seed * multiplier));
+    // Cast to integer for safety.
+    let minOffset = parseInt(min);
+    // Adjust the random number to be within range parameters.
+    let offsetAdjustedRandomInt = random + minOffset;
 
-    return parseInt(Math.floor(seed * (max - min + 1))) + parseInt(min);
+    return offsetAdjustedRandomInt;
 }
 
+// Convenience function for fetching nested obj vars without errors and
+// intensive validation.
 function getSlot(intent, slotName) {
-    if (intent.slots && intent.slots[slotName]) {
-        return intent.slots[slotName].value;
+    if (intent && intent.slots && intent.slots[slotName]) {
+        if (intent.slots[slotName].value && intent.slots[slotName].value != '?') {
+            return intent.slots[slotName].value;
+        }
     }
 }
 
 const handlers = {
+    'LaunchRequest': function () {
+        this.emit('RandoIntent');
+    },
     'RandoIntent': function () {
+        this.emit('GenerateRandomNumber');
+    },
+    'GenerateRandomNumber': function () {
         let intent = this.event.request.intent;
         let minSlot = getSlot(intent, 'Minimum');
         let maxSlot = getSlot(intent, 'Maximum');
@@ -35,24 +56,24 @@ const handlers = {
         minSlot = minSlot || defaults.min;
         maxSlot = maxSlot || defaults.max;
 
-        // If the numbers are reversed, invert them.
+        // If the arguments are reversed, invert them.
         if (minSlot > maxSlot) {
             let realMin = maxSlot;
             maxSlot = minSlot;
             minSlot = realMin;
         }
 
-        console.log(minSlot, maxSlot);
+        let randomNumber = random(minSlot, maxSlot);
 
-        this.emit(':tell', rando(minSlot, maxSlot));
+        this.emit(':tell', randomNumber);
     },
 };
 
 exports.handler = function (event, context, callback) {
     const alexa = Alexa.handler(event, context, callback);
 
-    if ('undefined' === typeof process.env.DEBUG) {
-        alexa.appId = APP_ID;
+    if (APP_ID && 'undefined' === typeof process.env.DEBUG) {
+        alexa.APP_ID = APP_ID;
     }
 
     alexa.registerHandlers(handlers);
